@@ -3,18 +3,28 @@ package com.wjl.redisdemo;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.test.context.junit4.SpringRunner;
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.Protocol;
 import redis.clients.jedis.SortingParams;
+import redis.clients.util.SafeEncoder;
 
-import java.util.Iterator;
-import java.util.Set;
+import java.util.*;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
 public class RedisdemoApplicationTests {
 
+	@Autowired
+	private RedisTemplate<String,String> redisTemplate;
 
 	private Jedis jedis;
 
@@ -321,6 +331,64 @@ public class RedisdemoApplicationTests {
 		System.out.println("获取hashs中所有的key："+jedis.hkeys("hashs"));
 		System.out.println("获取hashs中所有的value："+jedis.hvals("hashs"));
 		System.out.println();
+
+	}
+
+
+	@Test
+	public void lock() {
+		Object object=redisTemplate.execute(new RedisCallback<Object>() {
+			@Override
+			public Object doInRedis(RedisConnection connection) throws DataAccessException {
+				return connection.execute("set", new byte[][]{
+						SafeEncoder.encode("lock"), SafeEncoder.encode("1"), SafeEncoder.encode("nx"),
+						SafeEncoder.encode("px"), Protocol.toByteArray(50000)});
+			}
+		});
+
+//        Object object = redisTemplate.execute(new RedisCallback<Object>() {
+//            @Override
+//            public Object doInRedis(RedisConnection connection) throws DataAccessException {
+//                StringRedisSerializer serializer = new StringRedisSerializer();
+//                Boolean success = connection.setNX(serializer.serialize("lll"), serializer.serialize("sdsd"));
+//                connection.close();
+//                return success;
+//            }
+//        });
+		System.out.println(object.toString());
+	}
+
+
+	@Test
+	public void unlock() {
+		String LUA_SCRIPT_UNLOCK = "if (redis.call('GET', KEYS[1]) == ARGV[1]) then "
+				+ "return redis.call('DEL',KEYS[1]) "
+				+ "else " + "return '0' " + "end";
+		RedisScript<String> scriptUnlock =
+				new DefaultRedisScript<String>(LUA_SCRIPT_UNLOCK,
+						String.class);
+
+		Object object=redisTemplate.execute(scriptUnlock,
+				redisTemplate.getStringSerializer(),
+				redisTemplate.getStringSerializer(),
+				Collections.singletonList("lock"),
+				"1");
+
+
+//		String script = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return '1' end ";
+//
+//		DefaultRedisScript<String> redisScript = new DefaultRedisScript<String>();
+//		redisScript.setScriptText(script);
+//		redisScript.setResultType(String.class);
+//		List<String> keys = new ArrayList<String>();
+//		keys.add("lock");
+//		Object object=redisTemplate.execute(redisScript,keys, "1");
+
+
+		System.out.println(object.toString());
+
+
+
 
 	}
 
