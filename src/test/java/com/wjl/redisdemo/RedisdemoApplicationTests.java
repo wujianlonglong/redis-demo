@@ -1,18 +1,23 @@
 package com.wjl.redisdemo;
 
+import com.alibaba.fastjson.JSONObject;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Scope;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.web.client.RestTemplate;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Protocol;
 import redis.clients.jedis.SortingParams;
@@ -404,22 +409,84 @@ public class RedisdemoApplicationTests {
 
     @Test
     public void trylock() throws InterruptedException {
-        String uuid=UUID.randomUUID().toString();
         System.out.println("尝试获取锁！");
-       if( redisDistributedLock.lock("mac_12323232",uuid,100*1000,10*1000)){
+        String uuid = UUID.randomUUID().toString();
+        String lockKey = "device_bind_lock/780F77264E5F";
+        long expireTime = 30 * 1000;
+        long waitTime = 10 * 1000;
+       if( redisDistributedLock.lock(lockKey,uuid,expireTime,waitTime)){
            System.out.println("获取锁成功！");
            System.out.println("开始执行相关任务！");
-           Thread.sleep(10*1000);
+         //  Thread.sleep(10*1000);
            System.out.println("开始释放锁！");
-           redisDistributedLock.unlock("mac_12323232",uuid);
+          // redisDistributedLock.unlock("mac_12323232",uuid);
        }else{
            System.out.println("获取锁失败");
        }
 
-
-
-
     }
+
+
+
+    @Test
+    public void aaaa() throws InterruptedException {
+
+        String iner1="http://10.88.2.23:12341/inner/device_bindings";
+        String iner2="http://10.88.2.24:12341/inner/device_bindings";
+        String iner3="http://localhost:12341/inner/device_bindings";
+        String a = "{\"alias\":\"\",\"appId\":\"26df33dad15148c6932b233e5ec2bdd7\",\"city\":\"\",\"cityCode\":\"\",\"dataOne\":\"\",\"dataThree\":\"\",\"dataTwo\":\"\",\"deviceKey\":\"fbfb80280537d84edd2d7f6466e7e226\",\"deviceLock\":\"0\",\"did\":\"\",\"latitude\":\"29.769249\",\"longitude\":\"121.510524\",\"mac\":\"78:0f:77:26:4e:5f\",\"modelId\":\"0299154e-2d29-4079-b3cc-32134e05a4e2\",\"online\":false,\"password\":\"1480454306\",\"phone\":\"\",\"productKey\":\"60c8cbbef8814de2951383f7040aef26\",\"remark\":\"\",\"sn\":\"\",\"source\":0,\"subDevice\":0,\"terminalId\":0,\"token\":\"61b0e8a91bf4443bb9dbe919c8943f7f\",\"type\":\"20010\",\"userId\":\"f63d1be30d22449a9645da3cc4bcf5e7\",\"username\":\"Arthas\"}";
+        String b = "{\"alias\":\"\",\"appId\":\"26df33dad15148c6932b233e5ec2bdd7\",\"city\":\"\",\"cityCode\":\"\",\"dataOne\":\"\",\"dataThree\":\"\",\"dataTwo\":\"\",\"deviceKey\":\"fbfb80280537d84edd2d7f6466e7e226\",\"deviceLock\":\"0\",\"did\":\"\",\"latitude\":\"29.769249\",\"longitude\":\"121.510524\",\"mac\":\"78:0f:77:26:4e:5f\",\"modelId\":\"0299154e-2d29-4079-b3cc-32134e05a4e2\",\"online\":false,\"password\":\"1480454306\",\"phone\":\"\",\"productKey\":\"60c8cbbef8814de2951383f7040aef26\",\"remark\":\"\",\"sn\":\"\",\"source\":0,\"subDevice\":0,\"terminalId\":0,\"token\":\"61b0e8a91bf4443bb9dbe919c8943f7f\",\"type\":\"20010\",\"userId\":\"f63d1be30d22449a9645da3cc4bcf5e8\",\"username\":\"aaa\"}";
+
+        JSONObject oa=JSONObject.parseObject(a);
+        JSONObject ob=JSONObject.parseObject(b);
+//        DeviceInfoWithTokenDto oa = JSONObject.parseObject(a, DeviceInfoWithTokenDto.class);
+//        DeviceInfoWithTokenDto ob = JSONObject.parseObject(b, DeviceInfoWithTokenDto.class);
+//        deviceInfoController.bindDevice(oa);
+        Thread threada = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    HttpHeaders headers = new HttpHeaders();
+                    headers.setContentType(MediaType.APPLICATION_JSON);
+                    HttpEntity entity=new HttpEntity(a,headers);
+                    RestTemplate restTemplate=new RestTemplate();
+                    String object=restTemplate.postForObject(iner3,entity,String.class);
+                    System.out.println(object);
+                    //deviceInfoController.bindDevice(oa);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        Thread threadb = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    HttpHeaders headers = new HttpHeaders();
+                    headers.setContentType(MediaType.APPLICATION_JSON);
+                    HttpEntity entity=new HttpEntity(b,headers);
+                    RestTemplate restTemplate=new RestTemplate();
+                    String object=restTemplate.postForObject(iner3,entity,String.class);
+                    System.out.println(object);
+//                    deviceInfoController.bindDevice(ob);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+
+
+        threada.start();
+
+        threadb.start();
+
+
+
+        Thread.sleep(1000000);
+    }
+
 
 
 }

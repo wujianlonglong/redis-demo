@@ -76,7 +76,9 @@ public class RedisDistributedLock {
            // log.error("setNxWithExpire redis error,key:{}", lockKey);
         }
 
-        if (obj != null && obj.toString().equals(LOCK_SUCCESS))
+        //spring-boot-data-redis老版本返回的obj为byte[],新版本为字符串
+
+        if (obj != null && (obj.toString().equals(LOCK_SUCCESS)||new String((byte[])obj).equals(LOCK_SUCCESS)))
             return true;
 
         return false;
